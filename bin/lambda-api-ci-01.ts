@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
-import { LambdaApiCi01Stack } from '../lib/lambda-api-ci-01-stack';
+import { CIStack } from '../lib/ci-stack'
 
 const app = new cdk.App();
-new LambdaApiCi01Stack(app, 'LambdaApiCi01Stack');
+new CIStack(app, 'LambdaApiCi01Stack',{
+    repositoryName:'lambda-api'
+});

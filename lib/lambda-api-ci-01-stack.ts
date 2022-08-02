@@ -1,19 +1,56 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
-import { Construct } from 'constructs';
+import { LambdaIntegration, MethodLoggingLevel, RestApi } from "aws-cdk-lib/aws-apigateway"
+import { PolicyStatement } from "aws-cdk-lib/aws-iam"
+import { Function, Runtime, AssetCode, Code } from "aws-cdk-lib/aws-lambda"
+import { Duration, Stack, StackProps } from "aws-cdk-lib"
+import s3 = require("aws-cdk-lib/aws-s3")
+import { Construct } from "constructs"
+
+
+interface LambdaApiStackProps extends StackProps {
+  functionName: string
+}
 
 export class LambdaApiCi01Stack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+
+  private restApi: RestApi
+  private lambdaFunction: Function
+  private bucket: s3.Bucket
+  constructor(scope: Construct, id: string, props: LambdaApiStackProps) {
     super(scope, id, props);
+   
 
-    const queue = new sqs.Queue(this, 'LambdaApiCi01Queue', {
-      visibilityTimeout: Duration.seconds(300)
-    });
+    this.bucket = new s3.Bucket(this, "WidgetStore")
+    this.restApi = new RestApi(this, this.stackName + "RestApi", {
+        deployOptions: {
+            stageName: "beta",
+            metricsEnabled: true,
+            loggingLevel: MethodLoggingLevel.INFO,
+            dataTraceEnabled: true,
+        },
+    })
 
-    const topic = new sns.Topic(this, 'LambdaApiCi01Topic');
+    const lambdaPolicy = new PolicyStatement()
+    lambdaPolicy.addActions("s3:ListBucket")
+    lambdaPolicy.addResources(this.bucket.bucketArn)
 
-    topic.addSubscription(new subs.SqsSubscription(queue));
+    this.lambdaFunction = new Function(this, props.functionName, {
+      functionName: props.functionName,
+      handler: "handler.handler",
+      runtime: Runtime.NODEJS_14_X,
+      code: new AssetCode(`./src`),
+      memorySize: 512,
+      timeout: Duration.seconds(10),
+      environment: {
+          BUCKET: this.bucket.bucketName,
+      },
+      initialPolicy: [lambdaPolicy],
+  })
+
+
+    
+
+    
+
+    
   }
 }
